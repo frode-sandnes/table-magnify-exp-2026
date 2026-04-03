@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Loader</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+        }
+
+
+        /* The "Phone" container for desktop */
+        #phone-wrapper {
+            display: none; /* Hidden by default */
+            width: 475px;  /* Standard iPhone Width */
+            height: 475px; /* Standard iPhone Height */
+            border: 16px solid #111;
+            border-top-width: 60px;
+            border-bottom-width: 60px;
+            border-radius: 36px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            background: white;
+            overflow: hidden;
+            position: relative;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .desktop-msg {
+            position: absolute;
+            top: -100px;
+            color: white;
+            text-align: center;
+            width: 100%;
+        }
+
+         #instructions
+            {
+            position: absolute;
+/*            left: 50%;*/
+            left: 10%;
+            top: 2%;
+/*            width: 90;*/
+/*            transform: translate(-50%, 0%);*/
+            color: white;
+            font-size: x-large;
+            z-index: 100;
+            }
+    </style>
+    <link rel="icon" href="data:;base64,iVBORwOKGO=">
+    <link rel="stylesheet" href="likert.css">
+    <script src="experimentConfig.js" defer></script>
+    <script src="likertModal.js" defer></script>   
+    <script src="submitToForm.js" defer></script>   
+    <script src="controller.js" defer></script>
+</head>
+<body>
+    
+<div id="instructions"></div>
+
+    <div id="phone-wrapper">
+        <div class="desktop-msg"></div>
+        <iframe src="page.html"></iframe>
+    </div>
+
+    <script>
+        function checkDevice() {
+            // Threshold for smartphones is typically 768px (tablets) or 480px (phones)
+            const isMobile = window.innerWidth <= 480;
+
+            if (isMobile) {
+                // If mobile, go directly to the content page
+                window.location.href = "page.html";
+            } else {
+                // If desktop, show the iframe wrapper
+                document.getElementById('phone-wrapper').style.display = 'block';
+            }
+        }
+
+        // Run on load
+        window.onload = checkDevice;
+    </script>
+</body>
+</html>
