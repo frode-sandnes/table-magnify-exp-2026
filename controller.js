@@ -1,6 +1,15 @@
 "use strict"
 
 // globals
+let trialNo = -1; // initializing
+// experiments
+let trials = ["plain","annotate","crumbs","snippet" /*, "predict"*/];
+let tasks = experimentConfig.categories;
+// randomize order
+trials.sort((a,b) => Math.random() - 0.5);
+tasks.sort((a,b) => Math.random() - 0.5);
+
+
 // set up broadcast channel
 const send = new BroadcastChannel("controller");
 const receive = new BroadcastChannel("table");
@@ -8,8 +17,6 @@ let nextButton;
 const sessionID = Date.now();
 let currentTrial = "";
 let currentTask = "";
-
-console.log(sessionID)
 
 /**
  * Creates and injects a button at a specific viewport position.
@@ -43,7 +50,7 @@ function createFloatingButton(label, x, y, handler, experiment = "", categoryTas
     });*/
 
     // Attach the click event listener
-    btn.addEventListener('click', () => {handler({state:experiment, categoryTask})});
+    btn.addEventListener('click', () => {handler({state:experiment, categoryTask, training:isTraining()})});
 
     // Add it to the page
     document.body.appendChild(btn);
@@ -51,21 +58,38 @@ function createFloatingButton(label, x, y, handler, experiment = "", categoryTas
     }
 
 
-// Initialize the buttons
-createFloatingButton('Plain', "10%", "20%", handleButtonClick, "plain", "usb-cables");
+// Initialize the buttons - for testing
+/*createFloatingButton('Plain', "10%", "20%", handleButtonClick, "plain", "usb-cables");
 createFloatingButton('Annotation/heatmap', "10%", "30%", handleButtonClick, "annotate", "usb-cables");
 createFloatingButton('Crumbs', "10%", "40%", handleButtonClick, "crumbs", "usb-cables");
 createFloatingButton('Snippet', "10%", "50%", handleButtonClick, "snippet", "usb-cables");
-createFloatingButton('Predictive (experimental)', "10%", "60%", handleButtonClick, "predict", "usb-cables");
+createFloatingButton('Predictive (experimental)', "10%", "60%", handleButtonClick, "predict", "usb-cables");*/
+
+
+function disableButton(button, state)
+    {
+    button.disabled = state;
+    const style = state
+        ?   {
+            backgroundColor:'#ccc',
+            cursor: 'not-allowed'
+            }
+        :   {
+            backgroundColor: '#007BFF',
+            cursor: 'pointer'
+            }
+    Object.assign(button.style, style);
+    }
 
 // next button
 nextButton = createFloatingButton('Next task', "80%", "80%", showLikertModal, "next");
-nextButton.disabled = true;
+disableButton(nextButton, true);
+/*nextButton.disabled = true;
 Object.assign(nextButton.style, 
     {
     backgroundColor:'#ccc',
         cursor: 'not-allowed'
-    });
+    });*/
 
 function handleButtonClick(payload) 
     {
@@ -80,11 +104,12 @@ receive.onmessage = (event) =>
     {
     const payload = event.data;
     log(payload);
-    nextButton.disabled = false;
+    disableButton(nextButton, false);
+/*    nextButton.disabled = false;
     Object.assign(nextButton.style, {
         backgroundColor: '#007BFF',
         cursor: 'pointer'
-        });
+        });*/
     };
 
 function recordedLikert(score) 
@@ -94,29 +119,51 @@ function recordedLikert(score)
     }
 
 
-// experiments
-let trials = ["plain","annoate","crumbs","snippet" /*, "predict"*/];
-let tasks = experimentConfig.categories;
-// randomize order
-trials.sort((a,b) => Math.random() - 0.5);
-tasks.sort((a,b) => Math.random() - 0.5);
-let trialNo = 0; // initializing
 
-// log orders
-log({trials,tasks});
+
+
+function repetition()
+    {
+    return trialNo % experimentConfig.taskRepetitions;    
+    }
+function interactionNo()
+    {
+    return Math.trunc(trialNo / experimentConfig.taskRepetitions);    
+    }
+function isTraining()
+    {
+    return repetition() == 0;
+    }
+
+// log orders and display info
+log({trials,tasks,
+    cssWidth: window.screen.width,
+    cssHeight:window.screen.height,
+    physicalWidth: window.screen.width * window.devicePixelRatio,
+    physicalHeight: window.screen.height * window.devicePixelRatio,
+    zoomLevel: window.devicePixelRatio * 100
+    });
+
 
 
 function setupNext()
     {
     trialNo++;
-    if (trialNo >= trials.length)
+    if (interactionNo() >= trials.length)
         {
         showThankYouModal();
         }
-    currentTrial = trials[trialNo];
-    currentTask = tasks[trialNo];  
+    currentTrial = trials[interactionNo()];
+    currentTask = tasks[interactionNo()];  
     send.postMessage({state:currentTrial, categoryTask:currentTask});  
     document.getElementById("instructions").innerText = `Task ${trialNo + 1}: Find the cheapest ${currentTask}! Click on the radio button with the smallest price, then click the next button.`;
+    disableButton(nextButton, true);
+/*    nextButton.disabled = true;
+        Object.assign(nextButton.style, {
+    backgroundColor:'#ccc',
+        cursor: 'not-allowed'
+        });
+console.log(nextButton.disabled);    */
     }
 
 
@@ -131,7 +178,7 @@ function showThankYouModal() {
         left: '0',
         width: '100vw',
         height: '100vh',
-        backgroundColor: 'rgba(0, 0, 0, 0.9)', // Dark semi-transparent background
+        backgroundColor: "rgb(30 30 30)", // Dark semi-transparent background
         color: 'white',
         display: 'grid',
         placeItems: 'center', // Magic centering!
@@ -152,7 +199,7 @@ function showThankYouModal() {
 
     // 4. Add click-to-close functionality
     modal.addEventListener('click', () => {
-        document.body.removeChild(modal);
+        location.reload();
     });
 
     // 5. Assemble and inject
@@ -165,8 +212,104 @@ function showThankYouModal() {
 function log(pack)
     {
     // marshalling the payload
-    let payload = {sessionID, currentTrial, currentTask, ...pack};
+    let payload = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining(), ...pack};
 //    console.log(payload);   
     // enable actual logging
     submitToForm("table-exp2026-v1", payload); 
     }
+
+
+
+/**
+ * Creates and displays a full-screen modal with instructions.
+ * When 'Start' is clicked, the modal is removed and setup() is called.
+ */
+function createInstructionModal() {
+    // 1. Create the overlay container
+    const overlay = document.createElement('div');
+    overlay.id = 'instruction-modal';
+    
+    // Inline styles for full-screen coverage
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: "rgb(30 30 30)", // Dark background
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: '1000',
+        fontFamily: 'sans-serif',
+        textAlign: 'center',
+        padding: '20px'
+    });
+
+    // 2. Create the content wrapper
+    const content = document.createElement('div');
+    content.style.maxWidth = '600px';
+
+    // 3. Add your instructions
+    const title = document.createElement('h1');
+    title.innerText = "Instructions";
+    
+    const instructions = document.createElement('p');
+    instructions.innerText = "Thank your agreeing to participate in this experiment. Participation is voluntary and you can withdraw from the experiment at any time. No personal information is recorded and you will remain anonymous. Task completion times, error rates and your opinions will be recorded. Please contact us if you want to receive updates about the results of the experiment.";
+    
+    instructions.style.lineHeight = '1.6';
+    instructions.style.marginBottom = '30px';
+    instructions.style.textAlign = "left";
+
+    // 4. Create the 'Start' button
+    const startBtn = document.createElement('button');
+    startBtn.innerText = "Start";
+    Object.assign(startBtn.style, {
+        padding: '15px 40px',
+        fontSize: '1.2rem',
+        cursor: 'pointer',
+        backgroundColor: '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        transition: 'background-color 0.2s'
+    });
+
+    // Button Hover Effects
+    startBtn.onmouseover = () => startBtn.style.backgroundColor = '#0056b3';
+    startBtn.onmouseout = () => startBtn.style.backgroundColor = '#007bff';
+
+    // 5. Logic: Close modal and trigger setup
+    startBtn.onclick = () => {
+        document.body.removeChild(overlay);
+        if (typeof setup === "function") {
+            setup();
+        } else {
+            console.warn("setup() function is not defined.");
+        }
+    };
+
+    // Assemble and inject into the DOM
+    content.appendChild(title);
+    content.appendChild(instructions);
+    content.appendChild(startBtn);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+}
+
+/**
+ * The function called after the modal is closed
+ */
+function setup() {
+    console.log("Setup initiated!");
+    // Your initialization logic goes here (e.g., starting a timer, spawning elements)
+    setupNext();
+
+}
+
+// Call the function to display the modal
+createInstructionModal();
+
+

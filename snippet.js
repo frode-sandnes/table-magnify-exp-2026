@@ -17,6 +17,7 @@ function enableLiveInteractiveTable(tableSelector)
     let hideTimer = null;
 
     const popup = document.createElement('div');
+    popup.id = "snippetStyle";
     Object.assign(popup.style, {
         position: 'fixed',
         display: 'none',

@@ -4,7 +4,9 @@
 
 const experimentConfig =
     {
-    productsPerCategory: 6,
+    taskRepetitions : 2,
+
+    productsPerCategory: 5,
 
     categories: ['headphones', 'laptop computers', 'usb-cables', 'mouse', 'keyboard'],
 

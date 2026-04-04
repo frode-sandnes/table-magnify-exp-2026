@@ -12,7 +12,13 @@
         /**
          * Creates and injects the modal into the DOM
          */
-        function showLikertModal() {
+        function showLikertModal({training = false}) 
+            {
+            if (training)
+                {
+                recordedLikert("-1");
+                return; // don't show likert while training
+                }
             // 1. Create Modal Background
             const modal = document.createElement('div');
             modal.id = 'likert-modal';
