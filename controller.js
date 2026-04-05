@@ -1,7 +1,9 @@
 "use strict"
 
 // globals
+const logId = "table-exp2026-v1";
 let trialNo = -1; // initializing
+window.zoomChanges = [];
 // experiments
 let trials = ["plain","annotate","crumbs","snippet" /*, "predict"*/];
 let tasks = experimentConfig.categories;
@@ -13,6 +15,7 @@ tasks.sort((a,b) => Math.random() - 0.5);
 // set up broadcast channel
 const send = new BroadcastChannel("controller");
 const receive = new BroadcastChannel("table");
+
 let nextButton;
 const sessionID = Date.now();
 let currentTrial = "";
@@ -99,7 +102,8 @@ function handleButtonClick(payload)
     currentTrial = trials[trialNo];
     currentTask = tasks[trialNo];      
     }
-
+     
+    
 receive.onmessage = (event) => 
     {
     const payload = event.data;
@@ -112,9 +116,10 @@ receive.onmessage = (event) =>
         });*/
     };
 
+    
 function recordedLikert(score) 
     {
-    log({likertScore:score})
+    log({aggregated:{likertScore:score}})
     setupNext();
     }
 
@@ -136,18 +141,19 @@ function isTraining()
     }
 
 // log orders and display info
-log({trials,tasks,
+log({aggregated:{trials,tasks,
     cssWidth: window.screen.width,
     cssHeight:window.screen.height,
     physicalWidth: window.screen.width * window.devicePixelRatio,
     physicalHeight: window.screen.height * window.devicePixelRatio,
     zoomLevel: window.devicePixelRatio * 100
-    });
+    }});
 
 
 
 function setupNext()
     {
+    window.zoomChanges = [];    
     trialNo++;
     if (interactionNo() >= trials.length)
         {
@@ -209,14 +215,85 @@ function showThankYouModal() {
 
 
 
-function log(pack)
-    {
+function log(inPayload)
+    {       
+    const {aggregated} = inPayload;
     // marshalling the payload
-    let payload = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining(), ...pack};
-//    console.log(payload);   
+    const payloadInfo = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining()};
+    const payload = {...payloadInfo, ...aggregated, noZoomOps: window.zoomChanges.length};
+    const zoomPayload = {...payloadInfo,zommOps:window.zoomChanges};
+    console.log(payload);   
+    console.log(zoomPayload)
     // enable actual logging
-    submitToForm("table-exp2026-v1", payload); 
+    submitToForm(logId, payload); 
+    submitToForm(logId, zoomPayload); 
+    if ("raw" in inPayload)
+        {
+        const {raw} = inPayload;
+        const {scroll, mouseMove} = raw;
+        saveLargeArrayToForm("table-exp2026-v1", payloadInfo, "scroll", scroll);
+        saveLargeArrayToForm("table-exp2026-v1", payloadInfo, "mouseMove", mouseMove);
+   /*     console.error("raw size:", new TextEncoder().encode(JSON.stringify(raw)).length);
+        console.error(raw);
+        const rawPayload = {...payloadInfo,raw:raw};
+        try
+            {
+//        submitToForm("table-exp2026-v1", rawPayload);
+            }
+        catch (error) 
+            {
+            console.error("Problem saving raw:", error.message);
+            }*/
+        }
     }
+
+// to use later    
+function saveLargeArrayToForm(id, info, name, list)
+    {
+    const limit = 25000; // quite safe limit
+    const estimatedSize = new TextEncoder().encode(JSON.stringify(list)).length;
+    const noChunks = Math.ceil(estimatedSize / limit );
+    const splitSize = list.length / noChunks;
+    const lists = chunkArray(list, splitSize);
+//console.error({limit, estimatedSize, noChunks, splitSize, lists});    
+    lists.map((arr,i) => 
+        {
+        const payload = {...info,part:i,of:noChunks,[name]:arr};
+//console.error(payload);
+        setTimeout(() =>        // spread out in time not to bombard server. 
+                {
+                submitToForm(id, payload); 
+                }, 1000 * i);
+        });
+    }
+
+let a = Array.from({ length: 1000 }, (_, i) => i + 1);
+
+/*const str = "A".repeat(3000);
+console.log(str);
+//console.log(chunkArray(a,5))
+//saveLargeArrayToForm("bongo", {}, "testing",a)
+    submitToForm(logId, str); 
+*/
+
+/**
+ * Splits an array into smaller arrays of a specified size.
+ * @param {Array} array - The original array to be split.
+ * @param {number} size - The maximum size of each chunk.
+ * @returns {Array[]} - An array containing the chunked arrays.
+ */
+function chunkArray(array, size) {
+  const chunked = [];
+  let index = 0;
+
+  while (index < array.length) {
+    // .slice(start, end) extracts elements without modifying the original array
+    chunked.push(array.slice(index, index + size));
+    index += size;
+  }
+
+  return chunked;
+}
 
 
 
@@ -311,5 +388,44 @@ function setup() {
 
 // Call the function to display the modal
 createInstructionModal();
+
+
+
+// zoom logging
+function addZoomEventHandlers() {
+    // 1. Helper function to get the most accurate current zoom
+    const getZoomLevel = () => {
+        // visualViewport.scale handles pinch-zoom
+        // devicePixelRatio handles Ctrl +/- zoom
+        const vScale = window.visualViewport ? window.visualViewport.scale : 1;
+        const dPixelRatio = window.devicePixelRatio || 1;
+        
+        // We multiply them because some browsers scale both simultaneously
+        return vScale * dPixelRatio;
+    };
+
+    let lastZoom = getZoomLevel();
+    console.log("Zoom tracking initialized at:", lastZoom);
+
+    // 2. The Poller: Checks for changes every 200ms
+    // This is often more reliable than 'resize' events which browsers sometimes suppress
+    setInterval(() => {
+        const currentZoom = getZoomLevel();
+
+        if (Math.abs(currentZoom - lastZoom) > 0.01) { // 0.01 threshold to avoid float noise
+            const change = currentZoom - lastZoom;
+            
+            // Push the change value to the global array
+            window.zoomChanges.push(change);
+            // Output the change object to the console as requested
+//            console.log({ z: change });
+            lastZoom = currentZoom;
+        }
+    }, 1000); // poll every second - not too often.
+}
+
+// Start the poller
+addZoomEventHandlers();
+
 
 
