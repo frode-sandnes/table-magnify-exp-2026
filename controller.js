@@ -239,7 +239,7 @@ function log(inPayload)
     // enable actual logging
     submitToForm(logId, payload); 
     // only log zoom operations if there are any
-    if (window.zoomChanges.length)
+    if (window.zoomChanges.length > 0)
         {
         const zoomPayload = {...payloadInfo,zommOps:window.zoomChanges};
         submitToForm(logId, zoomPayload); 
