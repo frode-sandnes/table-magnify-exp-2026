@@ -5,23 +5,38 @@ const logId = "table-exp2026-v1";
 let trialNo = -1; // initializing
 window.zoomChanges = [];
 // experiments
-let trials = ["plain","annotate","crumbs","snippet" /*, "predict"*/];
 let tasks = experimentConfig.categories;
 // randomize order
 // trials.sort((a,b) => Math.random() - 0.5);
 tasks.sort((a,b) => Math.random() - 0.5);
 
-// Latin squares for order
-const latinSquare = [[0, 1, 2, 3 ],
-                     [1, 0, 3, 2],
-                     [2, 3, 0, 1],
-                     [3, 2, 1, 0]];
+    // Latin squares for order
+/*const latinSquare = [[0, 1, 2, 3 ],
+                    [1, 0, 3, 2],
+                    [2, 3, 0, 1],
+                    [3, 2, 1, 0]];*/
+const latinSquare = [[0, 1, 2 ],
+                    [1, 2, 0],
+                    [2, 0, 1]];   
+// organize the trials
+const sourceTrials = ["plain","annotate","crumbs"/*,"snippet" , "predict"*/];
 // pull a random goup                    
-const participantGroup = Math.floor(Math.random() * 4);                    
+const participantGroup = Math.floor(Math.random() * latinSquare.length);    
 // get the order
 const experimentOrder = latinSquare[participantGroup];
-// organize the trials
-trials = experimentOrder.map(i => trials[i]);
+//console.log({participantGroup, experimentOrder, sourceTrials})
+const trials = experimentOrder.map(i => sourceTrials[i]);
+
+                
+
+/*console.log("loaded...");
+
+
+document.addEventListener('DOMContentLoaded', () => 
+    {
+    console.log("starting....");
+
+    });*/
 
 //console.log({participantGroup,experimentOrder, trials})
 
@@ -117,11 +132,11 @@ function handleButtonClick(payload)
     currentTask = tasks[trialNo];      
     }
      
-    
+let receivedPayload;    
 receive.onmessage = (event) => 
     {
-    const payload = event.data;
-    log(payload);
+    receivedPayload = JSON.parse(JSON.stringify(event.data));
+//    log(payload); // do it later when finished
     disableButton(nextButton, false);
 /*    nextButton.disabled = false;
     Object.assign(nextButton.style, {
@@ -167,6 +182,11 @@ log({aggregated:{trials,tasks,participantGroup,
 
 function setupNext()
     {
+    // first log what we have gathered
+    if (receivedPayload !== undefined)
+        {   // but not the first time we call the page
+        log(receivedPayload);     
+        }    
     window.zoomChanges = [];    
     trialNo++;
     if (interactionNo() >= trials.length)
@@ -178,12 +198,6 @@ function setupNext()
     send.postMessage({state:currentTrial, categoryTask:currentTask});  
     document.getElementById("instructions").innerText = `Task ${trialNo + 1}: Find the cheapest ${currentTask}! Click on the radio button with the smallest price, then click the next button.`;
     disableButton(nextButton, true);
-/*    nextButton.disabled = true;
-        Object.assign(nextButton.style, {
-    backgroundColor:'#ccc',
-        cursor: 'not-allowed'
-        });
-console.log(nextButton.disabled);    */
     }
 
 
@@ -218,12 +232,39 @@ function showThankYouModal() {
     });
 
     // 4. Add click-to-close functionality
-    modal.addEventListener('click', () => {
-        location.reload();
+//    modal.addEventListener('click', () => {
+//        location.reload();
+
+    // add comment field
+    const comment = document.createElement("textarea");
+    const submit = document.createElement("button");
+    submit.innerText = "Submit feedback";
+    comment.style.width = "80%";
+    comment.style.height = "30%";
+    submit.onclick = () => 
+            { 
+            log({aggregated:{comment: comment.value}});
+            location.reload();
+            };
+    Object.assign(submit.style, {
+    /*    position: 'fixed',
+        left: x,
+        top: y,*/
+        zIndex: '1000',
+        padding: '10px 20px',
+        backgroundColor: '#007BFF',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
     });
 
     // 5. Assemble and inject
     modal.appendChild(text);
+    modal.appendChild(comment);
+    modal.appendChild(submit);
+
     document.body.appendChild(modal);
 }
 
@@ -235,7 +276,7 @@ function log(inPayload)
     // marshalling the payload
     const payloadInfo = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining()};
     const payload = {...payloadInfo, ...aggregated, noZoomOps: window.zoomChanges.length};
-    console.log(payload);   
+//    console.log(payload);   
     // enable actual logging
     submitToForm(logId, payload); 
     // only log zoom operations if there are any
@@ -243,7 +284,7 @@ function log(inPayload)
         {
         const zoomPayload = {...payloadInfo,zommOps:window.zoomChanges};
         submitToForm(logId, zoomPayload); 
-        console.log(zoomPayload)
+//        console.log(zoomPayload)
         }
 
     if ("raw" in inPayload)
@@ -269,7 +310,8 @@ function log(inPayload)
 // to use later    
 function saveLargeArrayToForm(id, info, name, list)
     {
-    const limit = 25000; // quite safe limit
+    const limit = 2000; // quite safe limit
+//    const limit = 25000; // quite safe limit
     const estimatedSize = new TextEncoder().encode(JSON.stringify(list)).length;
     const noChunks = Math.ceil(estimatedSize / limit );
     const splitSize = list.length / noChunks;
@@ -278,15 +320,60 @@ function saveLargeArrayToForm(id, info, name, list)
     lists.map((arr,i) => 
         {
         const payload = {...info,part:i,of:noChunks,[name]:arr};
+        addToQueue(payload);
 //console.error(payload);
-        setTimeout(() =>        // spread out in time not to bombard server. 
+  /*      setTimeout(() =>        // spread out in time not to bombard server. 
                 {
                 submitToForm(id, payload); 
-                }, 1000 * i);
+                console.log("raw ",i);
+                console.log(payload);
+                }, 3000 * (i + 1));*/
         });
     }
 
-let a = Array.from({ length: 1000 }, (_, i) => i + 1);
+
+
+// 1. The Global Queue
+const globalQueue = [];
+let isProcessing = false;
+
+function addToQueue(element) {
+    // Add element to the end of the array
+    globalQueue.push(element);
+//    console.log(`Added to queue. Current size: ${globalQueue.length}`);
+
+    // Start the processor if it isn't already running
+    startProcessor();
+}
+
+function startProcessor() 
+    {
+    if (isProcessing) return; // Prevent multiple intervals
+    isProcessing = true;
+
+    const intervalId = setInterval(() => {
+        if (globalQueue.length > 0) {
+            // 2. Remove the first element (FIFO - First In, First Out)
+            const currentElement = globalQueue.shift();
+            
+            // 3. Process the element
+            process(currentElement);
+        } else {
+            // Optional: Stop interval if queue is empty to save resources
+            clearInterval(intervalId);
+            isProcessing = false;
+//            console.log("Queue empty. Processor paused.");
+        }
+    }, 1000); // 1000ms = 1 second
+}
+
+function process(item) 
+    {
+    submitToForm(logId, item); 
+//    console.log("Processing element:", item);
+    }
+
+//let a = Array.from({ length: 1000 }, (_, i) => i + 1);
 
 /*const str = "A".repeat(3000);
 console.log(str);
@@ -425,7 +512,7 @@ function addZoomEventHandlers() {
     };
 
     let lastZoom = getZoomLevel();
-    console.log("Zoom tracking initialized at:", lastZoom);
+//    console.log("Zoom tracking initialized at:", lastZoom);
 
     // 2. The Poller: Checks for changes every 200ms
     // This is often more reliable than 'resize' events which browsers sometimes suppress
@@ -545,4 +632,7 @@ function logDemographic(demographics)
     log(demographics);
     setup();
     }
+
+
+
          
