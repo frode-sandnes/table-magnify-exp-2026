@@ -8,8 +8,22 @@ window.zoomChanges = [];
 let trials = ["plain","annotate","crumbs","snippet" /*, "predict"*/];
 let tasks = experimentConfig.categories;
 // randomize order
-trials.sort((a,b) => Math.random() - 0.5);
+// trials.sort((a,b) => Math.random() - 0.5);
 tasks.sort((a,b) => Math.random() - 0.5);
+
+// Latin squares for order
+const latinSquare = [[0, 1, 2, 3 ],
+                     [1, 0, 3, 2],
+                     [2, 3, 0, 1],
+                     [3, 2, 1, 0]];
+// pull a random goup                    
+const participantGroup = Math.floor(Math.random() * 4);                    
+// get the order
+const experimentOrder = latinSquare[participantGroup];
+// organize the trials
+trials = experimentOrder.map(i => trials[i]);
+
+//console.log({participantGroup,experimentOrder, trials})
 
 
 // set up broadcast channel
@@ -141,7 +155,7 @@ function isTraining()
     }
 
 // log orders and display info
-log({aggregated:{trials,tasks,
+log({aggregated:{trials,tasks,participantGroup,
     cssWidth: window.screen.width,
     cssHeight:window.screen.height,
     physicalWidth: window.screen.width * window.devicePixelRatio,
@@ -221,12 +235,17 @@ function log(inPayload)
     // marshalling the payload
     const payloadInfo = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining()};
     const payload = {...payloadInfo, ...aggregated, noZoomOps: window.zoomChanges.length};
-    const zoomPayload = {...payloadInfo,zommOps:window.zoomChanges};
     console.log(payload);   
-    console.log(zoomPayload)
     // enable actual logging
     submitToForm(logId, payload); 
-    submitToForm(logId, zoomPayload); 
+    // only log zoom operations if there are any
+    if (window.zoomChanges.length)
+        {
+        const zoomPayload = {...payloadInfo,zommOps:window.zoomChanges};
+        submitToForm(logId, zoomPayload); 
+        console.log(zoomPayload)
+        }
+
     if ("raw" in inPayload)
         {
         const {raw} = inPayload;
@@ -362,7 +381,8 @@ function createInstructionModal() {
     startBtn.onclick = () => {
         document.body.removeChild(overlay);
         if (typeof setup === "function") {
-            setup();
+            showDemographicsModal(logDemographic);
+ //           setup();
         } else {
             console.warn("setup() function is not defined.");
         }
@@ -429,3 +449,100 @@ addZoomEventHandlers();
 
 
 
+// demographic dialoge
+
+
+
+function showDemographicsModal(callback) {
+  const modalOverlay = document.createElement('div');
+  Object.assign(modalOverlay.style, {
+    position: 'fixed', top: '0', left: '0', width: '100vw', height: '100vh',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)', display: 'flex',
+    justifyContent: 'center', alignItems: 'center', zIndex: '1000', fontFamily: 'sans-serif'
+  });
+
+  const modalBox = document.createElement('div');
+  Object.assign(modalBox.style, {
+    backgroundColor: '#fff', padding: '2rem', borderRadius: '8px',
+    width: '90%', maxWidth: '400px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+  });
+
+  modalBox.innerHTML = `
+    <h2 style="margin-top: 0;">Participant Info</h2>
+    
+    <div style="margin-bottom: 1.5rem;">
+      <label style="display: block; margin-bottom: 0.5rem;">Gender Identity:</label>
+      <select id="genderSelect" style="width: 100%; padding: 8px;">
+        <option value="" disabled selected>-- Select Gender --</option>
+        <option value="Woman">Woman</option>
+        <option value="Man">Man</option>
+        <option value="Non-binary">Non-binary</option>
+        <option value="Prefer not to disclose">Prefer not to disclose</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label style="display: block; margin-bottom: 0.5rem;">Age Range:</label>
+      <select id="ageSelect" style="width: 100%; padding: 8px;">
+        <option value="" disabled selected>-- Select Age --</option>
+        <option value="10-19">10-19</option>
+        <option value="20-29">20-29</option>
+        <option value="30-39">30-39</option>
+        <option value="40-49">40-49</option>
+        <option value="50-59">50-59</option>
+        <option value="60-69">60-69</option>
+        <option value="70-79">70-79</option>
+        <option value="Prefer not to disclose">Prefer not to disclose</option>
+      </select>
+    </div>
+
+    <button id="submitBtn" disabled style="
+      width: 100%; padding: 10px; background: #cccccc; color: #666666; 
+      border: none; border-radius: 4px; cursor: not-allowed; font-weight: bold;">
+      Submit
+    </button>
+  `;
+
+  modalOverlay.appendChild(modalBox);
+  document.body.appendChild(modalOverlay);
+
+  const genderSelect = document.getElementById('genderSelect');
+  const ageSelect = document.getElementById('ageSelect');
+  const submitBtn = document.getElementById('submitBtn');
+
+  // Logic to enable/disable button
+  const validate = () => {
+    if (genderSelect.value && ageSelect.value) {
+      submitBtn.disabled = false;
+      submitBtn.style.background = '#007bff';
+      submitBtn.style.color = 'white';
+      submitBtn.style.cursor = 'pointer';
+    } else {
+      submitBtn.disabled = true;
+      submitBtn.style.background = '#cccccc';
+      submitBtn.style.color = '#666666';
+      submitBtn.style.cursor = 'not-allowed';
+    }
+  };
+
+  // Listen for changes on both selects
+  genderSelect.addEventListener('change', validate);
+  ageSelect.addEventListener('change', validate);
+
+  submitBtn.addEventListener('click', () => {
+    const results = {aggregated:{
+      gender: genderSelect.value,
+      age: ageSelect.value
+    }};
+    document.body.removeChild(modalOverlay);
+    if (typeof callback === 'function') callback(results);
+  });
+}
+
+
+function logDemographic(demographics)
+    {
+    log(demographics);
+    setup();
+    }
+         
