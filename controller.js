@@ -271,7 +271,8 @@ function showThankYouModal() {
 
 
 function log(inPayload)
-    {       
+    {     
+return; // preventing logging (or errors) with the live demo. - remove this line when used with experiment.        
     const {aggregated} = inPayload;
     // marshalling the payload
     const payloadInfo = {sessionID, currentTrial, currentTask, taskRepetition:repetition(), experimentNo: interactionNo(), training:isTraining()};
