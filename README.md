@@ -12,7 +12,7 @@ A live demo of the experimental platform can be found here:
 https://frode-sandnes.github.io/table-magnify-exp-2026/
 
 You can bookmark bookmarklets implmeneting each of the techniques and apply them (hopefully) to any website.
-- [Bookmarklet collection](bookmarklets.html)
+- [Bookmarklet collection](https://frode-sandnes.github.io/table-magnify-exp-2026/bookmarklets.html)
 
 You may experiment by combining the bookmarklets to get the benefits of each.
 
