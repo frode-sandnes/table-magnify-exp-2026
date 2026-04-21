@@ -1,7 +1,6 @@
 "use strict"
 
-const seed = "aHR0cHM6Ly9kb2NzLmdvb2dsZS5jb20vZm9ybXMvZC9lLzFGQUlwUUxTZUxaOXIxSFdPNTJ6UG1tZHV2OHM0LW5QVlVkY0hBY1ZGU0lwc2JMVkNkaHBqWTBnL2Zvcm1SZXNwb25zZT91c3A9cHBfdXJsJmVudHJ5LjU1MTgzOTIwMT0=";
-const formURL = atob(seed);
+const formURL = /* put your Google forms URL here */;
 const postfixURL = `&submit=Submit`;
 
 // id is the unique identifer for the payload type, json is the object to send
