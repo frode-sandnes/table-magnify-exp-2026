@@ -25,5 +25,15 @@ Note that these are simply prototype demonstrations. THey use fixed colours for 
 
 ## Breif overview of the code comonents
 The embellishments:
-- annotateTooltip.js contains
 - [annotateTooltip.js](annotateTooltip.js)
+- [breadcrumbs.js](breadcrumbs.js)
+- [snippet.js](snippet.js)
+
+Experiment framework
+- [experimentConfig.js](experimentConfig.js): most of the experiment configuration parameters
+- [randomTable.js](randomTable.js): generating random tables
+- [tableController.js](tableController.js): table logic for detecting table interactions
+- [likertModal.js](likertModal.js): Likert question mobal logic
+- [submitToForm.js](submitToForm.js): Logging logic.
+- [index.html](index.html): Main page
+- [page.html](page.html): Iframe showing the table (inside the "keyhole"
